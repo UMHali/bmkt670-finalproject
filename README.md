@@ -40,3 +40,5 @@ Codex wrote the PostgreSQL syntax in `sql/schema.sql` using the database structu
 Codex created `docs/field_sources.md` using the database fields and source relationships provided for the project.
 
 Codex also helped troubleshoot the PostgreSQL `libpq` library-path issue on my Mac, ran the Retrosheet and Statcast source-check scripts, and ran the Meteostat extraction script.
+
+IMPORTANT NOTE: I reviewed and verified all AI-generated work before using it. I made several changes to simplify the code, keep it consistent with methods and concepts used in this course and other coursework, and make sure I understood what each part of the code was doing because some of it was super complicated stuff I had never seen before so I rewrote it.
