@@ -1,66 +1,52 @@
+"""Reuse existing responses and fetch only missing weather batches."""
+import json
 import os
 from datetime import date, timedelta
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 
-# Load the API key from the .env file.
-load_dotenv()
+ROOT = Path(__file__).resolve().parents[1]
 
-api_key = os.getenv("METEOSTAT_API_KEY")
 
-if not api_key:
-    raise ValueError("METEOSTAT_API_KEY is missing from .env")
+def main():
+    load_dotenv(ROOT / '.env')
+    output = ROOT / 'data/raw/meteostat'
+    output.mkdir(parents=True, exist_ok=True)
+    start = date(2023, 1, 1)
+    last = date(2025, 12, 31)
+    total = 0
+    while start <= last:
+        end = min(start + timedelta(days=29), last)
+        path = output / f'meteostat_{start}_{end}.json'
+        if path.exists():
+            # Read only: never overwrite an existing raw response.
+            payload = json.loads(path.read_text())
+            status = 'Reused'
+        else:
+            key = os.getenv('METEOSTAT_API_KEY')
+            if not key:
+                raise ValueError('METEOSTAT_API_KEY is missing from .env')
+            response = requests.get(
+                'https://meteostat.p.rapidapi.com/point/hourly',
+                headers={'x-rapidapi-key': key, 'x-rapidapi-host': 'meteostat.p.rapidapi.com'},
+                params={'lat': 33.800369, 'lon': -117.882596, 'start': start.isoformat(), 'end': end.isoformat(), 'tz': 'America/Los_Angeles', 'units': 'metric'},
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            with path.open('xb') as file:
+                file.write(response.content)
+            status = 'Fetched'
+        if not isinstance(payload.get('data'), list):
+            raise TypeError(f'Weather response has no data list: {path.name}')
+        count = len(payload['data'])
+        total += count
+        print(f'{status} {path.name}: {count} hourly rows')
+        start = end + timedelta(days=1)
+    print('Total hourly rows available:', total)
 
-# Create the folder for the raw API responses.
-os.makedirs("data/raw/meteostat", exist_ok=True)
 
-# Set the first and last dates for the weather data.
-start_date = date(2023, 1, 1)
-final_date = date(2025, 12, 31)
-
-total_rows = 0
-
-# Pull the weather data in batches of no more than 30 days.
-while start_date <= final_date:
-    end_date = min(start_date + timedelta(days=29), final_date)
-
-    url = "https://meteostat.p.rapidapi.com/point/hourly"
-
-    headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "meteostat.p.rapidapi.com"
-    }
-
-    params = {
-        "lat": 33.800369,
-        "lon": -117.882596,
-        "start": start_date.isoformat(),
-        "end": end_date.isoformat(),
-        "tz": "America/Los_Angeles",
-        "units": "metric"
-    }
-
-    response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
-
-    # Save the complete API response unchanged.
-    filename = (
-        f"data/raw/meteostat/"
-        f"meteostat_{start_date}_{end_date}.json"
-    )
-
-    with open(filename, "wb") as file:
-        file.write(response.content)
-
-    # Count the hourly rows returned by this request.
-    data = response.json()
-    row_count = len(data["data"])
-    total_rows += row_count
-
-    print(f"{start_date} through {end_date}: {row_count} hourly rows")
-
-    # Move to the next 30-day period.
-    start_date = end_date + timedelta(days=1)
-
-print(f"Total hourly rows pulled: {total_rows}")
+if __name__ == '__main__':
+    main()
