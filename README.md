@@ -17,41 +17,21 @@ One row in my ML feature table = one Los Angeles Angels home game.
 | Meteostat | Historical hourly temperature, precipitation, and wind at Angel Stadium | API using `etl/extract_weather.py`; raw JSON responses saved in `data/raw/meteostat/`. |
 
 ## Data Window and Features
-This project uses only the 2023–2025 regular seasons because the pitch clock began in 2023. No pre-2023 games are used for training or historical features. The chronological split is 2023 = train, 2024 = validate, and 2025 = test.
+This project uses the 2023–2025 regular seasons. I left out pre-2023 games because the pitch clock began in 2023, so earlier game durations were produced under a different timing environment. The time split is 2023 = train, 2024 = validate, and 2025 = test.
 
-The three annual Statcast files replaced the combined 25,000-row export after validation found completeness concerns. The combined export is not used. Only Angels plate appearances are counted; delivered-pitch totals are not calculated because automatic records make that count ambiguous.
+The historical data contains 243 Angels home games. The ML feature table contains 242 rows because the first 2023 home game has no earlier post-pitch-clock home-game history for the rolling features. Rolling features use only earlier games, so the current game's results are not included in its own predictors.
 
-Approved team codes are normalized to Statcast abbreviations, including OAK and ATH → ATH. Four verified doubleheader mappings resolve repeated date/opponent pairs. See `docs/field_sources.md`.
+Statcast is stored as one file per season. Angels plate appearances are used as a historical game-pacing measure. Delivered-pitch totals are not used because automatic ball and automatic strike records make that count unclear. Team abbreviations are standardized across sources, and the four doubleheaders are matched to the correct game IDs.
 
-Rolling averages use `shift(1)` before a five-game rolling window, with `min_periods=1` to use available prior history. Doubleheaders are ordered by start time, and history continues across seasons. Current-game scores and batting totals are excluded from ML predictors. Only the first home game is removed from ML for lack of prior post-pitch-clock history: 243 historical games, 242 ML rows.
-
-Weather matches the nearest local hourly observation within 30 minutes. Raw precipitation gaps are unchanged because none is selected for a game. Historical observed weather and Retrosheet start times should be reviewed for availability before deploying an upcoming-game model; forecasts are needed for future weather. Missing-value decisions are in `docs/missing_data.md`.
+Weather is matched to the nearest local hourly observation within 30 minutes of the game start time. No selected game weather rows are missing. Missing-data decisions are documented in `docs/missing_data.md`, and field sources and definitions are documented in `docs/field_sources.md`.
 
 ## How to Run
-From the project folder, activate your environment and install dependencies if needed:
-
-```sh
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
-Set `METEOSTAT_API_KEY`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in your private `.env` file.
-
-```sh
-python run_pipeline.py
-```
-
-On this Mac, if psycopg2 reports a missing `libpq.5.dylib`, use:
-
-```sh
-DYLD_LIBRARY_PATH=/Library/PostgreSQL/18/lib python run_pipeline.py
-```
-
-The pipeline runs source checks, weather extraction, transform, load, and quality checks in that order. Existing weather JSON files are read and reused; only missing batches are fetched. Source files are never overwritten. Clean outputs are written to `data/clean/`.
-
-**The load step executes `sql/schema.sql`, dropping and rebuilding the project tables and their dependent objects.** Inserts and the rebuild share a transaction, which rolls back if loading fails. Quality checks print PASS or FAIL for every check without stopping on data-check failures. A script crash stops the pipeline; `Pipeline finished.` appears only when all scripts complete.
-
-Run any individual step with `python etl/transform.py`, `python etl/load.py`, or `python etl/quality_checks.py`. `python db_check.py` lists public tables.
+1. Create and activate a virtual environment
+2. Install packages: `pip install -r requirements.txt`
+3. Create a `.env` file with the Meteostat API key and database connection information.
+4. Run the full pipeline: `python run_pipeline.py`
+5. Review the row counts and PASS/FAIL quality checks. A successful run ends with `Pipeline finished.`
+6. Confirm the database tables were created: `python db_check.py`
 
 ## AI Usage
 I used OpenAI Codex through Visual Studio Code as a coding agent for portions of this final project, including the Database Design & Setup work and the Transform, Load, ML Feature Table, and Data Quality work.
