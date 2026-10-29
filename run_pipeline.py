@@ -8,7 +8,8 @@ steps = [
     "etl/extract_weather.py",
     "etl/transform.py",
     "etl/load.py",
-    "etl/quality_checks.py"
+    "etl/quality_checks.py",
+    "model/train_model.py"
 ]
 
 for step in steps:

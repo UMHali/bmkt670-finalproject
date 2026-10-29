@@ -1,4 +1,5 @@
 -- Remove old tables so the schema can be run again.
+DROP TABLE IF EXISTS model_predictions CASCADE;
 DROP TABLE IF EXISTS ml_features_game_duration CASCADE;
 DROP TABLE IF EXISTS fact_weather CASCADE;
 DROP TABLE IF EXISTS fact_game_metrics CASCADE;
@@ -75,4 +76,13 @@ CREATE TABLE ml_features_game_duration (
     duration_minutes INTEGER NOT NULL,
     split TEXT NOT NULL
         CHECK (split IN ('train', 'validate', 'test'))
+);
+
+CREATE TABLE model_predictions (
+    game_id TEXT PRIMARY KEY REFERENCES fact_game(game_id),
+    split TEXT NOT NULL CHECK (split IN ('train', 'validate', 'test')),
+    actual DOUBLE PRECISION NOT NULL,
+    predicted DOUBLE PRECISION NOT NULL,
+    error DOUBLE PRECISION NOT NULL,
+    model_name TEXT NOT NULL
 );
