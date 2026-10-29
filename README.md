@@ -25,13 +25,38 @@ Statcast is stored as one file per season. Angels plate appearances are used as 
 
 Weather is matched to the nearest local hourly observation within 30 minutes of the game start time. No selected game weather rows are missing. Missing-data decisions are documented in `docs/missing_data.md`, and field sources and definitions are documented in `docs/field_sources.md`.
 
+## Modeling Results
+The prediction target is duration_minutes. Model performance is measured using mean absolute error (MAE), which shows how many minutes the predictions are off from the actual game duration on average.
+
+The data is split by season:
+- 2023: training data, 80 rows
+- 2024: validation data, 81 rows
+- 2025: test data, 81 rows
+
+The first 2023 Angels home game is retained in the historical tables but excluded from the machine learning table because no earlier post-pitch-clock Angels home-game history exists for the rolling features.
+
+Three regression models were compared with a baseline using the validation data:
+| Model | Validation MAE |
+|---|---|
+| Baseline | 13.44 minutes |
+| Linear Regression | 17.65 minutes |
+| KNN Regression | 16.51 minutes |
+| Decision Tree Regression | 30.05 minutes |
+
+KNN Regression had the lowest validation MAE among the three predictive models and was selected before the test data was evaluated. Its test MAE was 16.02 minutes which was close to its validation MAE of 16.51 minutes.
+
+The baseline still performed better than all three predictive models. This indicates that the current features and amount of training history did not improve prediction accuracy beyond using the average training game duration.
+
+Standardized Linear Regression coefficients were used for interpretation. Game timing variables had the largest coefficient magnitudes followed by recent average game duration and recent scoring. These relationships are used for interpretation only and do not establish causation.
+
+The selected KNN model writes predictions for all 242 machine learning rows to the PostgreSQL model_predictions table.
+
 ## How to Run
 1. Create and activate a virtual environment
 2. Install packages: `pip install -r requirements.txt`
-3. Create a `.env` file with the Meteostat API key and database connection information.
-4. Run the full pipeline: `python run_pipeline.py`
-5. Review the row counts and PASS/FAIL quality checks. A successful run ends with `Pipeline finished.`
-6. Confirm the database tables were created: `python db_check.py`
+3. Create a .env file with the PostgreSQL database connection information. 
+4. Run the full pipeline: `python run_pipeline.py`. A successful run ends with `Pipeline finished.`
+5. Confirm the database tables were created: `python db_check.py`
 
 ## AI Usage
 I used OpenAI Codex through Visual Studio Code as a coding agent for portions of this final project, including the Database Design & Setup work and the Transform, Load, ML Feature Table, and Data Quality work.
